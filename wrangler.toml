@@ -1,0 +1,9 @@
+name = "project-revival-webstats"
+compatibility_date = "2026-10-11"
+pages_build_output_dir = "./public"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "project-revival-webstats"
+database_id = "db74bc51-757c-4f40-8930-3b238ac5015c"
+migrations_dir = "migrations"

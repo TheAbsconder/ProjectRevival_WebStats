@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Project Revival · Round stats</title><link rel="stylesheet" href="styles.css"><script type="module" src="app.js"></script></head>
+<body><header><a class="discord" href="https://discord.project-revival.us" target="_blank" rel="noopener noreferrer">Join Discord ↗</a><p class="eyebrow">PROJECT REVIVAL</p><h1>Round statistics</h1><p>One round. Three perspectives.</p></header>
+<main><p id="status" role="status" aria-live="polite">Loading rounds…</p><section class="round-picker"><label for="rounds">Completed round</label><select id="rounds" disabled></select><button id="refresh">Refresh rounds</button><button id="older" hidden>Load older rounds</button></section>
+<p id="sample" class="notice" hidden>Phase 1 sample data — these player statistics are fictional.</p>
+<section aria-labelledby="overview-title"><h2 id="overview-title">Round overview</h2><div id="overview" class="overview"></div></section>
+<section aria-labelledby="compare-title"><div class="section-head"><h2 id="compare-title">Compare players <small>Overall</small></h2><button id="add" disabled>Add Player +</button></div><div id="players" class="players"></div><div id="comparison" class="scroll"></div></section>
+<section aria-labelledby="leaders-title"><h2 id="leaders-title">Top 3</h2><div id="leaders" class="leaders"></div></section></main><footer>Completed-round snapshots · Project Revival</footer></body></html>
