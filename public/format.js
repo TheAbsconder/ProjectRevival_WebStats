@@ -1,6 +1,14 @@
-export const label = key => key.replace(/([a-z])([A-Z])/g,'$1 $2').replace(/([A-Z])([A-Z][a-z])/g,'$1 $2').replace(/^./,c=>c.toUpperCase());
+const labels = {kdRatio:'KD Ratio',lavBtrKills:'LAV/BTR Kills',aiKills:'AI Kills',totalAIKills:'Total AI Kills',deathsToAI:'Deaths to AI'};
+export const label = key => labels[key] || key.replace(/([a-z])([A-Z])/g,'$1 $2').replace(/([A-Z])([A-Z][a-z])/g,'$1 $2').replace(/\b(lav|btr|ai|kd)\b/gi,s=>s.toUpperCase()).replace(/^./,c=>c.toUpperCase());
+export function dateTime(input) {
+  const date = new Date(input);
+  if (!Number.isFinite(date.getTime())) return '—';
+  return date.toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',hour12:true});
+}
+export const roundLabel = r => `${r.id} - ${r.matchName || r.map || 'Unknown scenario'} - ${dateTime(r.completedAt)}`;
 export function value(key, v) {
   if (v === undefined || v === null) return '—';
+  if (key === 'completedAt') return dateTime(v);
   if (typeof v !== 'number') return String(v);
   if (['durationSeconds','timeConnected','longestLife'].includes(key)) return `${Math.floor(v/3600)}h ${Math.floor(v%3600/60)}m`;
   if (key === 'longestKill') return `${v.toLocaleString()} m`;
