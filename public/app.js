@@ -1,4 +1,4 @@
-import {label,value,sections} from './format.js';
+import {label,value,sections,roundLabel} from './format.js';
 const $ = id => document.getElementById(id);
 const el = (tag,text,cls) => { const n=document.createElement(tag); if(text!==undefined)n.textContent=text; if(cls)n.className=cls; return n; };
 let payload, selected=[], requestNumber=0, nextOffset=null;
@@ -7,7 +7,12 @@ function showError(e){$('status').textContent=`Unable to load stats: ${e.message
 function card(title,data){const c=el('div',undefined,'card');c.append(el('h3',title));for(const [k,v] of Object.entries(data||{})){if(v===null||typeof v==='object')continue;const p=el('p');p.append(el('span',label(k)),el('strong',value(k,v)));c.append(p);}return c;}
 function render(){
   $('sample').hidden=!payload.sampleData;
-  $('overview').replaceChildren(card('Round',payload.round),card('Totals',payload.roundSummary));
+  const round = {...payload.round};
+  delete round.completedAtUnix;
+  delete round.scenarioId;
+  delete round.worldResource;
+  if (!round.matchName) round.matchName = round.map;
+  $('overview').replaceChildren(card('Round',round),card('Totals',payload.roundSummary));
   for(const team of ['US','USSR'])if(payload.roundSummary?.[team])$('overview').append(card(team,payload.roundSummary[team]));
   $('leaders').replaceChildren();
   for(const [key,entries] of Object.entries(payload.leaderboards||{})){
@@ -34,10 +39,10 @@ function renderComparison(){
   }
   table.append(body);$('comparison').replaceChildren(table);
 }
-async function loadRound(){const serial=++requestNumber;$('status').textContent='Loading round…';$('add').disabled=true;try{const p=await api(`/api/rounds/${encodeURIComponent($('rounds').value)}`);if(serial!==requestNumber)return;payload=p;selected=Object.keys(p.players||{}).slice(0,1);render();$('status').textContent='Showing completed-round snapshot.';}catch(e){if(serial===requestNumber){payload=null;$('players').replaceChildren();$('comparison').replaceChildren();$('overview').replaceChildren();$('leaders').replaceChildren();showError(e);}}}
+async function loadRound(){const serial=++requestNumber;$('status').textContent='Loading round…';$('add').disabled=true;try{const p=await api(`/api/rounds/${encodeURIComponent($('rounds').value)}`);if(serial!==requestNumber)return;payload=p;selected=Object.keys(p.players||{}).slice(0,1);render();$('status').textContent='';}catch(e){if(serial===requestNumber){payload=null;$('players').replaceChildren();$('comparison').replaceChildren();$('overview').replaceChildren();$('leaders').replaceChildren();showError(e);}}}
 async function loadRounds(older=false){$('refresh').disabled=true;$('older').disabled=true;try{
   const data=await api(`/api/rounds${older?`?offset=${nextOffset}`:''}`);if(!older)$('rounds').replaceChildren();
-  for(const r of data.rounds){const o=el('option',`Round #${r.id} — ${r.map} — ${new Date(r.completedAt).toLocaleString()}`);o.value=r.id;$('rounds').append(o);}
+  for(const r of data.rounds){const o=el('option',roundLabel(r));o.value=r.id;$('rounds').append(o);}
   nextOffset=data.nextOffset;$('older').hidden=nextOffset===null;$('rounds').disabled=!$('rounds').options.length;
   if(!older){if(data.rounds.length){$('rounds').selectedIndex=0;await loadRound();}else{++requestNumber;payload=null;$('add').disabled=true;for(const id of ['players','comparison','overview','leaders'])$(id).replaceChildren();$('sample').hidden=true;$('status').textContent='No completed rounds yet. Finish a valid test round, then refresh.';}}
 }catch(e){showError(e);}finally{$('refresh').disabled=false;$('older').disabled=false;}}
