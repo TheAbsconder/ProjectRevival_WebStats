@@ -36,6 +36,9 @@ export function validatePayload(p) {
   const r = p.round;
   if (object(r) && r.map === undefined && typeof r.mapName === 'string') { r.map = r.mapName; delete r.mapName; }
   if (!object(r) || !text(r.map, 120) || !text(r.winner, 40) || !Number.isSafeInteger(r.durationSeconds) || r.durationSeconds < 0) return false;
+  if (r.matchName !== undefined && !text(r.matchName, 200)) return false;
+  if (r.scenarioId !== undefined && !text(r.scenarioId, 1024)) return false;
+  // Do not mutate old snapshots with new fields: old retry bodies must remain identical.
   // Arma emits a Unix timestamp; normalize once to UTC for storage and public reads.
   if (!r.completedAt && Number.isSafeInteger(r.completedAtUnix) && r.completedAtUnix > 0 && r.completedAtUnix < 4102444800)
     r.completedAt = new Date(r.completedAtUnix * 1000).toISOString();
@@ -78,7 +81,7 @@ export async function onRequest({request, env, params}) {
     if (request.method === 'GET') {
       const offset = new URL(request.url).searchParams.get('offset') || '0';
       if (!/^\d{1,7}$/.test(offset)) return reply({error:'invalid_offset'},400);
-      const {results} = await env.DB.prepare('SELECT id, map, winner, completed_at AS completedAt, duration_seconds AS durationSeconds FROM rounds ORDER BY completed_at DESC, id DESC LIMIT 101 OFFSET ?').bind(Number(offset)).all();
+      const {results} = await env.DB.prepare("SELECT id, map, COALESCE(NULLIF(TRIM(matchName), ''), map) AS matchName, winner, completed_at AS completedAt, duration_seconds AS durationSeconds FROM rounds ORDER BY completed_at DESC, id DESC LIMIT 101 OFFSET ?").bind(Number(offset)).all();
       return reply({rounds:results.slice(0,100), nextOffset:results.length > 100 ? Number(offset)+100 : null});
     }
     if (request.method !== 'POST' || id !== undefined) return reply({error:'method_not_allowed'},405);
@@ -91,8 +94,8 @@ export async function onRequest({request, env, params}) {
     }
     if (!validatePayload(payload)) return reply({error:'invalid_payload'},400);
     const serialized = JSON.stringify(payload), r = payload.round;
-    const result = await env.DB.prepare('INSERT INTO rounds (round_key, completed_at, map, winner, duration_seconds, schema_version, payload) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(round_key) DO NOTHING')
-      .bind(payload.roundId,r.completedAt,r.map,r.winner,r.durationSeconds,payload.schemaVersion,serialized).run();
+    const result = await env.DB.prepare('INSERT INTO rounds (round_key, completed_at, map, matchName, winner, duration_seconds, schema_version, payload) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(round_key) DO NOTHING')
+      .bind(payload.roundId,r.completedAt,r.map,r.matchName || r.map,r.winner,r.durationSeconds,payload.schemaVersion,serialized).run();
     const row = await env.DB.prepare('SELECT id, payload FROM rounds WHERE round_key = ?').bind(payload.roundId).first();
     if (!row) throw new Error('storage_failed');
     if (row.payload !== serialized) return reply({error:'round_id_conflict'},409);
