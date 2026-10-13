@@ -1,4 +1,5 @@
-const MAX_BYTES = 256 * 1024;
+// Three buckets for a populated server can exceed Phase 1's tiny fixture bound.
+const MAX_BYTES = 4 * 1024 * 1024;
 const object = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const text = (v, max) => typeof v === 'string' && v.trim().length > 0 && v.length <= max;
 export const reply = (body, status = 200) => new Response(JSON.stringify(body), {
@@ -32,7 +33,8 @@ async function authorized(provided, expected) {
 }
 
 export function validatePayload(p) {
-  if (!object(p) || p.schemaVersion !== 1 || !text(p.roundId, 160)) return false;
+  if (!object(p) || ![1,2].includes(p.schemaVersion) || !text(p.roundId, 160)) return false;
+  if (p.schemaVersion === 2 && p.sampleData !== false) return false;
   const r = p.round;
   if (object(r) && r.map === undefined && typeof r.mapName === 'string') { r.map = r.mapName; delete r.mapName; }
   if (!object(r) || !text(r.map, 120) || !text(r.winner, 40) || !Number.isSafeInteger(r.durationSeconds) || r.durationSeconds < 0) return false;
@@ -44,9 +46,18 @@ export function validatePayload(p) {
     r.completedAt = new Date(r.completedAtUnix * 1000).toISOString();
   if (typeof r.completedAt !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/.test(r.completedAt) || !Number.isFinite(Date.parse(r.completedAt))) return false;
   r.completedAt = new Date(r.completedAt).toISOString();
-  if (!object(p.players) || Object.keys(p.players).length < 1 || Object.keys(p.players).length > 256) return false;
+  if (!object(p.players) || Object.keys(p.players).length < 1 || Object.keys(p.players).length > 1024) return false;
   for (const [name, player] of Object.entries(p.players)) {
     if (!text(name,120) || !object(player) || !object(player.overall)) return false;
+    for (const key of ['dominated','nemesis']) {
+      if (player[key] === undefined) continue;
+      if (!Array.isArray(player[key]) || player[key].length > 3) return false;
+      const seen = new Set();
+      for (const entry of player[key]) {
+        if (!object(entry) || !text(entry.player,120) || !Object.hasOwn(p.players,entry.player) || entry.player === name || seen.has(entry.player) || !Number.isSafeInteger(entry.kills) || entry.kills <= 0) return false;
+        seen.add(entry.player);
+      }
+    }
     for (const bucket of ['overall','US','USSR']) {
       if (player[bucket] === undefined) continue;
       if (!object(player[bucket])) return false;
@@ -94,6 +105,8 @@ export async function onRequest({request, env, params}) {
     }
     if (!validatePayload(payload)) return reply({error:'invalid_payload'},400);
     const serialized = JSON.stringify(payload), r = payload.round;
+    // D1's row/string cap is 2,000,000 bytes; reserve space for the other columns.
+    if (new TextEncoder().encode(serialized).byteLength > 1900000) return reply({error:'snapshot_too_large'},413);
     const result = await env.DB.prepare('INSERT INTO rounds (round_key, completed_at, map, matchName, winner, duration_seconds, schema_version, payload) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(round_key) DO NOTHING')
       .bind(payload.roundId,r.completedAt,r.map,r.matchName || r.map,r.winner,r.durationSeconds,payload.schemaVersion,serialized).run();
     const row = await env.DB.prepare('SELECT id, payload FROM rounds WHERE round_key = ?').bind(payload.roundId).first();
