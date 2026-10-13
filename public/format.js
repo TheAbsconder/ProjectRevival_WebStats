@@ -1,4 +1,4 @@
-const labels = {kdRatio:'KD Ratio',lavBtrKills:'LAV/BTR Kills',aiKills:'AI Kills',totalAIKills:'Total AI Kills',deathsToAI:'Deaths to AI'};
+const labels = {kdRatio:'KD Ratio',lavBtrKills:'LAV/BTR Kills',lavBtrPlayerKills:'LAV/BTR Player Kills',lavBtrAiKills:'LAV/BTR AI Kills',aiKills:'AI Kills',totalAIKills:'Total AI Kills',deathsToAI:'Deaths to AI',fiaAiKills:'FIA AI Kills',otherTeamAiKills:'Other Team AI Kills',deathsToFiaAi:'Deaths to FIA AI',deathsToOtherTeamAi:'Deaths to Team AI',deathsOther:'Other Deaths'};
 export const label = key => labels[key] || key.replace(/([a-z])([A-Z])/g,'$1 $2').replace(/([A-Z])([A-Z][a-z])/g,'$1 $2').replace(/\b(lav|btr|ai|kd)\b/gi,s=>s.toUpperCase()).replace(/^./,c=>c.toUpperCase());
 export function dateTime(input) {
   const date = new Date(input);
@@ -22,4 +22,8 @@ export function sections(players) {
     for (const [key,v] of Object.entries(stats)) if (typeof v === 'number') result.get(category).add(key);
   }
   return result;
+}
+export function relationships(player, key) {
+  if (!Array.isArray(player?.[key])) return [];
+  return player[key].filter(e=>e && typeof e.player==='string' && Number.isSafeInteger(e.kills) && e.kills>0).slice(0,3);
 }
