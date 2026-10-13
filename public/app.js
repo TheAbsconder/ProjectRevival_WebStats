@@ -1,9 +1,9 @@
-import {label,value,sections,roundLabel} from './format.js';
+import {label,value,sections,roundLabel,relationships} from './format.js';
 const $ = id => document.getElementById(id);
 const el = (tag,text,cls) => { const n=document.createElement(tag); if(text!==undefined)n.textContent=text; if(cls)n.className=cls; return n; };
 let payload, selected=[], requestNumber=0, nextOffset=null;
 async function api(path) {const r=await fetch(path,{cache:'no-store'});if(!r.ok)throw new Error(`API returned HTTP ${r.status}`);return r.json();}
-function showError(e){$('status').textContent=`Unable to load stats: ${e.message}. Try Refresh rounds.`;}
+function showError(e){$('relationships')?.replaceChildren();$('status').textContent=`Unable to load stats: ${e.message}. Try Refresh rounds.`;}
 function card(title,data){const c=el('div',undefined,'card');c.append(el('h3',title));for(const [k,v] of Object.entries(data||{})){if(v===null||typeof v==='object')continue;const p=el('p');p.append(el('span',label(k)),el('strong',value(k,v)));c.append(p);}return c;}
 function render(){
   $('sample').hidden=!payload.sampleData;
@@ -38,6 +38,22 @@ function renderComparison(){
     for(const key of keys){const row=el('tr');const title=el('th',label(key));title.scope='row';row.append(title);selected.forEach((n,i)=>row.append(el('td',value(key,payload.players[n]?.overall?.[category]?.[key]),`c${i}`)));body.append(row);}
   }
   table.append(body);$('comparison').replaceChildren(table);
+  let rivals=$('relationships');
+  if(!rivals){rivals=el('div',undefined,'overview');rivals.id='relationships';$('comparison').after(rivals);}
+  rivals.replaceChildren();
+  for(const [i,name] of selected.entries()){
+    const player=payload.players[name];
+    // Old rounds have no relationships; keep them readable without fake zero rivals.
+    if(!Array.isArray(player?.dominated)&&!Array.isArray(player?.nemesis))continue;
+    const c=el('div',undefined,`card c${i}`);c.append(el('h3',name));
+    for(const key of ['dominated','nemesis']){
+      const title=el('h4',label(key));title.title=key==='dominated'?'Enemy players you killed most':'Enemy players who killed you most';c.append(title);
+      const rows=relationships(player,key);
+      if(!rows.length){c.append(el('p','—'));continue;}
+      const list=el('ul');for(const entry of rows)list.append(el('li',`${entry.player} · ${entry.kills}`));c.append(list);
+    }
+    rivals.append(c);
+  }
 }
 async function loadRound(){const serial=++requestNumber;$('status').textContent='Loading round…';$('add').disabled=true;try{const p=await api(`/api/rounds/${encodeURIComponent($('rounds').value)}`);if(serial!==requestNumber)return;payload=p;selected=Object.keys(p.players||{}).slice(0,1);render();$('status').textContent='';}catch(e){if(serial===requestNumber){payload=null;$('players').replaceChildren();$('comparison').replaceChildren();$('overview').replaceChildren();$('leaders').replaceChildren();showError(e);}}}
 async function loadRounds(older=false){$('refresh').disabled=true;$('older').disabled=true;try{
