@@ -34,6 +34,8 @@ async function authorized(provided, expected) {
 
 export function validatePayload(p) {
   if (!object(p) || ![1,2].includes(p.schemaVersion) || !text(p.roundId, 160)) return false;
+  // Accept old Enforce recovery files; canonicalize only this known boolean field.
+  if (p.schemaVersion === 2 && p.sampleData === 0) p.sampleData = false;
   if (p.schemaVersion === 2 && p.sampleData !== false) return false;
   const r = p.round;
   if (object(r) && r.map === undefined && typeof r.mapName === 'string') { r.map = r.mapName; delete r.mapName; }
@@ -51,7 +53,7 @@ export function validatePayload(p) {
     if (!text(name,120) || !object(player) || !object(player.overall)) return false;
     for (const key of ['dominated','nemesis']) {
       if (player[key] === undefined) continue;
-      if (!Array.isArray(player[key]) || player[key].length > 3) return false;
+      if (!Array.isArray(player[key]) || player[key].length > 5) return false;
       const seen = new Set();
       for (const entry of player[key]) {
         if (!object(entry) || !text(entry.player,120) || !Object.hasOwn(p.players,entry.player) || entry.player === name || seen.has(entry.player) || !Number.isSafeInteger(entry.kills) || entry.kills <= 0) return false;
