@@ -47,10 +47,10 @@ function renderComparison(){
     if(!Array.isArray(player?.dominated)&&!Array.isArray(player?.nemesis))continue;
     const c=el('div',undefined,`card c${i}`);c.append(el('h3',name));
     for(const key of ['dominated','nemesis']){
-      const title=el('h4',label(key));title.title=key==='dominated'?'Enemy players you killed most':'Enemy players who killed you most';c.append(title);
+      const title=el('h4',key==='dominated'?'Killed':'Killed By');title.title=key==='dominated'?'Enemy players you killed most':'Enemy players who killed you most';c.append(title);
       const rows=relationships(player,key);
       if(!rows.length){c.append(el('p','—'));continue;}
-      const list=el('ul');for(const entry of rows)list.append(el('li',`${entry.player} · ${entry.kills}`));c.append(list);
+      const list=el('ol');for(const entry of rows)list.append(el('li',`${entry.player} — ${entry.kills}`));c.append(list);
     }
     rivals.append(c);
   }
