@@ -25,5 +25,5 @@ export function sections(players) {
 }
 export function relationships(player, key) {
   if (!Array.isArray(player?.[key])) return [];
-  return player[key].filter(e=>e && typeof e.player==='string' && Number.isSafeInteger(e.kills) && e.kills>0).slice(0,3);
+  return player[key].filter(e=>e && typeof e.player==='string' && Number.isSafeInteger(e.kills) && e.kills>0).slice(0,5);
 }
